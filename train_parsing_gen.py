@@ -109,11 +109,11 @@ def main():
 
         if epoch % opt['val_freq'] == 0:
             save_dir = f'{opt["path"]["visualization"]}/valset/epoch_{epoch:03d}'
-            os.makedirs(save_dir, exist_ok=opt['debug'])
+            os.makedirs(save_dir, exist_ok=True)
             val_acc = model.inference(val_loader, save_dir)
 
             save_dir = f'{opt["path"]["visualization"]}/testset/epoch_{epoch:03d}'
-            os.makedirs(save_dir, exist_ok=opt['debug'])
+            os.makedirs(save_dir, exist_ok=True)
             test_acc = model.inference(test_loader, save_dir)
 
             logger.info(f'Epoch: {epoch}, '

@@ -15,6 +15,11 @@ from models.losses.cross_entropy_loss import CrossEntropyLoss
 
 logger = logging.getLogger('base')
 
+import os
+import sys
+sys.path.append(os.path.expanduser('~/XUEYu/CLIP'))
+import clip
+import torch.nn as nn
 
 class ParsingGenModel():
     """Paring Generation model.
@@ -25,10 +30,7 @@ class ParsingGenModel():
         self.device = torch.device('cuda')
         self.is_train = opt['is_train']
 
-        self.attr_embedder = ShapeAttrEmbedding(
-            dim=opt['embedder_dim'],
-            out_dim=opt['embedder_out_dim'],
-            cls_num_list=opt['attr_class_num']).to(self.device)
+        self.attr_embedder, _ = clip.load("ViT-B/32", device= self.device)
         self.parsing_encoder = ShapeUNet(
             in_channels=opt['encoder_in_channels']).to(self.device)
         self.parsing_decoder = FCNHead(
@@ -41,6 +43,8 @@ class ParsingGenModel():
             num_classes=opt['fc_num_classes'],
             align_corners=opt['fc_align_corners'],
         ).to(self.device)
+        
+        self.attr_linear = nn.Linear(512, 128).to(self.device)
 
         self.init_training_settings()
 
@@ -55,7 +59,7 @@ class ParsingGenModel():
 
     def init_training_settings(self):
         optim_params = []
-        for v in self.attr_embedder.parameters():
+        for v in self.attr_linear.parameters(): # Freeze the text embeddings extracted by CLIP and just train the linear projection.
             if v.requires_grad:
                 optim_params.append(v)
         for v in self.parsing_encoder.parameters():
@@ -74,15 +78,19 @@ class ParsingGenModel():
 
     def feed_data(self, data):
         self.pose = data['densepose'].to(self.device)
-        self.attr = data['attr'].to(self.device)
+        # self.attr = data['attr'].to(self.device)
+        self.attr = data['attr']
         self.segm = data['segm'].to(self.device)
 
     def optimize_parameters(self):
-        self.attr_embedder.train()
+        # self.attr_embedder.train()
         self.parsing_encoder.train()
         self.parsing_decoder.train()
+        self.attr_linear.train()
 
-        self.attr_embedding = self.attr_embedder(self.attr)
+        text = clip.tokenize(self.attr).to(self.device)
+        self.attr_embedding = self.attr_embedder.encode_text(text)
+        self.attr_embedding = self.attr_linear(self.attr_embedding.float())
         self.pose_enc = self.parsing_encoder(self.pose, self.attr_embedding)
         self.seg_logits = self.parsing_decoder(self.pose_enc)
 
@@ -109,19 +117,21 @@ class ParsingGenModel():
         self.attr_embedder.eval()
         self.parsing_encoder.eval()
         self.parsing_decoder.eval()
+        self.attr_linear.eval()
 
         acc = 0
         num = 0
 
         for _, data in enumerate(data_loader):
             pose = data['densepose'].to(self.device)
-            attr = data['attr'].to(self.device)
+            text = clip.tokenize(data['attr']).to(self.device)
             segm = data['segm'].to(self.device)
             img_name = data['img_name']
 
             num += pose.size(0)
             with torch.no_grad():
-                attr_embedding = self.attr_embedder(attr)
+                attr_embedding = self.attr_embedder.encode_text(text)
+                attr_embedding = self.attr_linear(attr_embedding.float())
                 pose_enc = self.parsing_encoder(pose, attr_embedding)
                 seg_logits = self.parsing_decoder(pose_enc)
             seg_pred = seg_logits.argmax(dim=1)

@@ -14,6 +14,8 @@ from models.losses.segmentation_loss import BCELossWithQuant
 from models.losses.vqgan_loss import (DiffAugment, adopt_weight,
                                       calculate_adaptive_weight, hinge_d_loss)
 
+from utils_xy import pipeline
+
 
 class VQModel():
 
@@ -90,7 +92,7 @@ class VQModel():
         self.quant_conv.train()
         self.post_quant_conv.train()
 
-        loss = self.training_step(data)
+        loss = self.training_step(data, current_iter)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -184,11 +186,27 @@ class VQSegmentationModel(VQModel):
             lr=self.opt['lr'],
             betas=(0.5, 0.9))
 
-    def training_step(self, data):
+    def training_step(self, data, current_iter):
         x = self.feed_data(data)
         xrec, qloss = self.forward_step(x)
         aeloss, log_dict_ae = self.loss(qloss, x, xrec, split="train")
         self.log_dict.update(log_dict_ae)
+        
+        if x.shape[1] > 3:
+            # colorize with random projection
+            assert xrec.shape[1] > 3
+            # convert logits to indices
+            xrec = torch.argmax(xrec, dim=1, keepdim=True)
+            xrec = F.one_hot(xrec, num_classes=x.shape[1])
+            xrec = xrec.squeeze(1).permute(0, 3, 1, 2).float()
+            x = self.to_rgb(x)
+            xrec = self.to_rgb(xrec)
+        
+        # import pdb; pdb.set_trace()
+        STEPS = 20
+        if current_iter % STEPS == 0:
+            pipeline(x, xrec)
+        
         return aeloss
 
     def to_rgb(self, x):
@@ -442,9 +460,8 @@ class VQImageSegmTextureModel(VQImageModel):
         return x, mask
 
     def training_step(self, data, step):
-        x, mask = self.feed_data(data)
-        xrec, codebook_loss = self.forward_step(x, mask)
-
+        x, mask = self.feed_data(data) # x.shape == [1, 3, 512, 256]
+        xrec, codebook_loss = self.forward_step(x, mask) # xrec.shape == [1, 3, 512, 256]
         # get recon/perceptual loss
         recon_loss = torch.abs(x.contiguous() - xrec.contiguous())
         p_loss = self.perceptual(x.contiguous(), xrec.contiguous())
@@ -484,6 +501,11 @@ class VQImageSegmTextureModel(VQImageModel):
             self.log_dict["d_loss"] = d_loss
         else:
             d_loss = None
+            
+        # Show the images of original and the generated image.
+        STEPS = 20
+        if step % STEPS == 0:
+            pipeline(x, xrec)
 
         return loss, d_loss
 
@@ -500,6 +522,9 @@ class VQImageSegmTextureModel(VQImageModel):
 
         for _, data in enumerate(data_loader):
             img_name = data['img_name'][0]
+            ############## Debug #################
+            import pdb; pdb.set_trace()
+            ############## Debug #################
             x, mask = self.feed_data(data)
             xrec, _ = self.forward_step(x, mask)
 

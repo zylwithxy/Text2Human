@@ -202,6 +202,9 @@ class HierarchyVQSpatialTextureAwareModel():
         self.bot_quant_conv.train()
         self.bot_post_quant_conv.train()
 
+        ############----------------############
+        import pdb; pdb.set_trace()
+        ############----------------############
         loss, d_loss = self.training_step(data, step)
         self.optimizer.zero_grad()
         loss.backward()
@@ -242,6 +245,9 @@ class HierarchyVQSpatialTextureAwareModel():
         x = data['image'].float().to(self.device)
         mask = data['texture_mask'].float().to(self.device)
 
+        ############----------------############
+        import pdb; pdb.set_trace()
+        ############----------------############
         return x, mask
 
     def training_step(self, data, step):

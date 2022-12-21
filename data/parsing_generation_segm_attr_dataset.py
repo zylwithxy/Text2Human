@@ -6,6 +6,9 @@ import torch
 import torch.utils.data as data
 from PIL import Image
 
+import sys
+sys.path.append(os.path.expanduser('~/XUEYu/pose_transfer/CLIP_ADGAN'))
+from read_captions import Read_MultiModel_Captions
 
 class ParsingGenerationDeepFashionAttrSegmDataset(data.Dataset):
 
@@ -13,17 +16,19 @@ class ParsingGenerationDeepFashionAttrSegmDataset(data.Dataset):
         self._densepose_path = pose_dir
         self._segm_path = segm_dir
         self._image_fnames = []
-        self.attrs = []
+        self.attrs = [] # For the text(split) of each image
 
         self.downsample_factor = downsample_factor
 
         # training, ground-truth available
         assert os.path.exists(ann_file)
+        captions = Read_MultiModel_Captions()
+        
         for row in open(os.path.join(ann_file), 'r'):
             annotations = row.split()
             self._image_fnames.append(annotations[0])
-            self.attrs.append([int(i) for i in annotations[1:]])
-
+            self.attrs.append(captions.captions[os.path.splitext(annotations[0])[0]]) #
+        
     def _open_file(self, path_prefix, fname):
         return open(os.path.join(path_prefix, fname), 'rb')
 
@@ -63,7 +68,7 @@ class ParsingGenerationDeepFashionAttrSegmDataset(data.Dataset):
 
         pose = torch.from_numpy(pose)
         segm = torch.LongTensor(segm)
-        attr = torch.LongTensor(attr)
+        # attr = torch.LongTensor(attr)
 
         pose = pose / 12. - 1
 

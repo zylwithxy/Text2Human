@@ -70,6 +70,8 @@ def main():
     test_loader = torch.utils.data.DataLoader(
         dataset=test_dataset, batch_size=1, shuffle=False)
     logger.info(f'Number of test set: {len(test_dataset)}.')
+    
+    import pdb; pdb.set_trace()
 
     current_iter = 0
     best_epoch = None
@@ -90,7 +92,8 @@ def main():
             data_time = time.time() - data_time
 
             current_iter += 1
-
+            
+            # import pdb; pdb.set_trace()
             model.optimize_parameters(batch_data, current_iter)
 
             iter_time = time.time() - iter_time

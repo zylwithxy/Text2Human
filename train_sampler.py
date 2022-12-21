@@ -90,6 +90,7 @@ def main():
             current_iter += 1
 
             model.feed_data(batch_data)
+            import pdb; pdb.set_trace()
             model.optimize_parameters()
 
             iter_time = time.time() - iter_time

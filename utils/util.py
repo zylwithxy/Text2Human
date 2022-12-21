@@ -15,7 +15,7 @@ def make_exp_dirs(opt):
     """Make dirs for experiments."""
     path_opt = opt['path'].copy()
     if opt['is_train']:
-        overwrite = True if 'debug' in opt['name'] else False
+        overwrite = True 
         os.makedirs(path_opt.pop('experiments_root'), exist_ok=overwrite)
         os.makedirs(path_opt.pop('models'), exist_ok=overwrite)
     else:

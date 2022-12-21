@@ -230,10 +230,10 @@ class TransformerTextureAwareModel():
         return x_t, x_0_gt_ignore_list, mask
 
     def _train_loss(self, x_0, x_0_gt_list):
-        b, device = x_0.size(0), x_0.device
+        b, device = x_0.size(0), x_0.device # x_0 shape (b, 512)
 
         # choose what time steps to compute loss at
-        t, pt = self.sample_time(b, device, 'uniform')
+        t, pt = self.sample_time(b, device, 'uniform') # int, 
 
         # make x noisy and denoise
         if self.mask_schedule == 'random':
@@ -270,7 +270,8 @@ class TransformerTextureAwareModel():
             loss = loss / (math.log(2) * x_0.shape[1:].numel())
         else:
             raise ValueError
-
+        
+        import pdb; pdb.set_trace()
         return loss.mean(), vb_loss.mean()
 
     def feed_data(self, data):
